@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student API Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Student API Tester</h1>
+    
+    <div class="test-section">
+        <h2>1. Health Check</h2>
+        <button onclick="testHealthCheck()">Test Health Check</button>
+        <div id="healthResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Create Student</h2>
+        <button onclick="testCreateStudent()">Create Test Student</button>
+        <div id="createResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Get All Students</h2>
+        <button onclick="testGetAllStudents()">Get All Students</button>
+        <div id="getAllResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Get/Update/Delete Student</h2>
+        <div>
+            <input type="text" id="studentId" placeholder="Student ID" style="padding: 8px; width: 200px;">
+            <button onclick="testGetStudent()">Get Student</button>
+            <button onclick="testUpdateStudent()">Update Student</button>
+            <button onclick="testDeleteStudent()" style="background-color: #f44336;">Delete Student</button>
+        </div>
+        <div id="studentResult"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3000/api/students';
+        let createdStudentId = null;
+
+        // Helper function to make API requests
+        async function makeRequest(url, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                const response = await fetch(url, options);
+                const result = await response.json();
+                return {
+                    status: response.status,
+                    data: result
+                };
+            } catch (error) {
+                console.error('Error:', error);
+                return {
+                    status: 0,
+                    error: error.message
+                };
+            }
+        }
+
+        // Format JSON for display
+        function formatJson(data) {
+            return JSON.stringify(data, null, 2);
+        }
+
+        // Test 1: Health Check
+        async function testHealthCheck() {
+            const resultDiv = document.getElementById('healthResult');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/health');
+                const data = await response.json();
+                
+                const status = response.status === 200 ? 'success' : 'error';
+                resultDiv.innerHTML = `
+                    <p class="${status}">Status: ${response.status} ${response.statusText}</p>
+                    <pre>${formatJson(data)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        }
+
+        // Test 2: Create Student
+        async function testCreateStudent() {
+            const resultDiv = document.getElementById('createResult');
+            resultDiv.innerHTML = 'Creating test student...';
+            
+            const testStudent = {
+                name: 'Test Student ' + Math.floor(Math.random() * 1000),
+                email: `test.${Date.now()}@example.com`,
+                age: Math.floor(Math.random() * 10) + 18,
+                grade: ['A', 'B', 'C', 'D', 'F'][Math.floor(Math.random() * 5)],
+                courses: ['Math', 'Science', 'History', 'English']
+            };
+            
+            try {
+                const response = await fetch(API_BASE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testStudent)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    createdStudentId = data.data._id;
+                    document.getElementById('studentId').value = createdStudentId;
+                    resultDiv.innerHTML = `
+                        <p class="success">Student created successfully!</p>
+                        <p>Student ID: ${createdStudentId}</p>
+                        <pre>${formatJson(data)}</pre>
+                    `;
+                } else {
+                    throw new Error(data.message || 'Failed to create student');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        }
+
+        // Test 3: Get All Students
+        async function testGetAllStudents() {
+            const resultDiv = document.getElementById('getAllResult');
+            resultDiv.innerHTML = 'Fetching students...';
+            
+            try {
+                const response = await fetch(API_BASE_URL);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p>Found ${data.data ? data.data.length : 0} students</p>
+                        <pre>${formatJson(data)}</pre>
+                    `;
+                } else {
+                    throw new Error(data.message || 'Failed to fetch students');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        }
+
+        // Test 4: Get Single Student
+        async function testGetStudent() {
+            const studentId = document.getElementById('studentId').value.trim();
+            const resultDiv = document.getElementById('studentResult');
+            
+            if (!studentId) {
+                resultDiv.innerHTML = '<p class="error">Please enter a student ID</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Fetching student...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/${studentId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">Student found</p>
+                        <pre>${formatJson(data)}</pre>
+                    `;
+                } else {
+                    throw new Error(data.message || 'Student not found');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        }
+
+        // Test 5: Update Student
+        async function testUpdateStudent() {
+            const studentId = document.getElementById('studentId').value.trim();
+            const resultDiv = document.getElementById('studentResult');
+            
+            if (!studentId) {
+                resultDiv.innerHTML = '<p class="error">Please enter a student ID</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Updating student...';
+            
+            const updateData = {
+                name: 'Updated Name ' + Math.floor(Math.random() * 1000),
+                grade: ['A', 'B', 'C', 'D', 'F'][Math.floor(Math.random() * 5)]
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/${studentId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">Student updated successfully!</p>
+                        <pre>${formatJson(data)}</pre>
+                    `;
+                } else {
+                    throw new Error(data.message || 'Failed to update student');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        }
+
+        // Test 6: Delete Student
+        async function testDeleteStudent() {
+            const studentId = document.getElementById('studentId').value.trim();
+            const resultDiv = document.getElementById('studentResult');
+            
+            if (!studentId) {
+                resultDiv.innerHTML = '<p class="error">Please enter a student ID</p>';
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to delete student ${studentId}?`)) {
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Deleting student...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/${studentId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">Student deleted successfully!</p>
+                        <pre>${formatJson(data)}</pre>
+                    `;
+                    document.getElementById('studentId').value = '';
+                } else {
+                    throw new Error(data.message || 'Failed to delete student');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">Error: ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
